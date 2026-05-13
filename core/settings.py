@@ -124,3 +124,22 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+
+
+
+
+
+
+
+
+
+# myAiPA uses a custom User model defined in accounts/models.py
+# instead of Django's default User model.
+# This gives us full control to add myAiPA-specific fields
+# like timezone, myAiPA_name, briefing_time and streak_count.
+# IMPORTANT: This must always be set before the very first
+# migration otherwise Django will not recognise our custom User
+# and the entire authentication system will break.
+AUTH_USER_MODEL = 'accounts.User'
