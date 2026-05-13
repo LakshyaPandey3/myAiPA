@@ -39,8 +39,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Third party packages
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+
     
-    # our apps
+    # myAiPA apps
     'accounts',
     'tasks',
     'scheduler',
@@ -143,3 +149,80 @@ STATIC_URL = 'static/'
 # migration otherwise Django will not recognise our custom User
 # and the entire authentication system will break.
 AUTH_USER_MODEL = 'accounts.User'
+
+
+
+
+
+
+# =============================================================
+# REST FRAMEWORK CONFIGURATION
+# Controls how myAiPA's API handles authentication,
+# permissions and responses globally.
+# =============================================================
+
+REST_FRAMEWORK = {
+
+    # Default authentication method for all endpoints.
+    # JWTAuthentication means every request must send
+    # a valid JWT token in the Authorization header.
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+
+    # Default permission for all endpoints.
+    # IsAuthenticated means every endpoint is protected
+    # by default — no token, no access.
+    # Individual views can override this if needed.
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+
+    # Consistent error response format across
+    # all myAiPA API endpoints.
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+}
+
+
+# =============================================================
+# JWT CONFIGURATION
+# Controls how myAiPA's JWT tokens behave.
+# =============================================================
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+
+    # Access token expires in 15 minutes.
+    # Short lived for security — if stolen,
+    # attacker has only 15 minutes.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+
+    # Refresh token expires in 7 days.
+    # Used only to get a new access token.
+    # Longer lived for user convenience.
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
+    # When a refresh token is used, give the user
+    # a brand new refresh token automatically.
+    # Keeps them logged in without re-entering password.
+    'ROTATE_REFRESH_TOKENS': True,
+
+    # When a new refresh token is issued, blacklist
+    # the old one immediately so it cannot be reused.
+    # Prevents token theft attacks.
+    'BLACKLIST_AFTER_ROTATION': True,
+
+    # The algorithm used to sign tokens.
+    # HS256 is the industry standard.
+    'ALGORITHM': 'HS256',
+
+    # The header type sent with every request.
+    # Authorization: Bearer <token>
+    'AUTH_HEADER_TYPES': ('Bearer',),
+
+    # Which field from the User model identifies
+    # the user inside the token payload.
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
