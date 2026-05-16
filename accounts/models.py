@@ -7,15 +7,29 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+
 """
- Custom User model for myAiPA.
- Extends Django's AbstractUser to add myAiPA-specific
- fields. This model is the foundation of the entire
- application — every task, event, and briefing
- belongs to a User.
- """
+Custom User model for myAiPA.
+Extends Django's AbstractUser to add myAiPA-specific
+fields. This model is the foundation of the entire
+application — every task, event, and briefing
+belongs to a User.
+"""
 class User(AbstractUser):
- 
+
+    # Email declared explicitly with unique=True to
+    # enforce uniqueness at database level — not just
+    # serializer level. Prevents duplicate emails even
+    # under simultaneous registration race conditions.
+    email = models.EmailField(
+        unique=True,
+        error_messages={
+            'unique': (
+                "This email is already registered with myAiPA."
+            )
+        }
+    )
+
     # The user's local timezone.
     # Used by Celery to send the myAiPA morning briefing
     # at the correct local time (default: India).
@@ -25,9 +39,9 @@ class User(AbstractUser):
     )
 
     # The name the user gives their myAiPA assistant.
-    # Used to personalise greetings — "Good morning
-    # from Aria!" feels warmer than "Good morning
-    # from Assistant!"
+    # Default is Zoya — warm, alive, unforgettable.
+    # Used to personalise greetings —
+    # "Good morning from your personal assistant Zoya!"
     myAiPA_name = models.CharField(
         max_length=50,
         default='Zoya'
