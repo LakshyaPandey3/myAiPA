@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third party packages
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -226,3 +228,20 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+
+
+
+# =============================================================
+# CORS CONFIGURATION
+# Controls which frontend domains can call myAiPA's API.
+# Without this — browser blocks all cross-origin requests.
+# =============================================================
+
+# In development — allow React local server
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',    # React Vite dev server
+    'http://127.0.0.1:5173',   # React Vite alternative
+]
+
+# Allow cookies and auth headers to be sent
+CORS_ALLOW_CREDENTIALS = True

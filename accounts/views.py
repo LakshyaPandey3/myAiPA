@@ -4,11 +4,16 @@
 # Views receive requests, use serializers to validate data,
 # perform business logic, and return JSON responses.
 
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
 from .models import User
 from .serializers import (
@@ -27,8 +32,7 @@ def get_tokens_for_user(user):
     """
     Generate JWT access and refresh tokens for a user.
     Called after successful registration and login.
-    Returns both tokens as a dictionary so views
-    can include them in their responses.
+    Returns both tokens so views can send them to React.
     """
     refresh = RefreshToken.for_user(user)
     return {
@@ -42,11 +46,9 @@ Handles new user registration for myAiPA.
 Accepts POST requests with user details.
 Validates data through RegisterSerializer.
 Creates user and returns JWT tokens on success.
-No authentication required — this is a public endpoint.
+No authentication required — public endpoint.
 """
 class RegisterView(APIView):
-    # AllowAny means anyone can access this endpoint.
-    # No JWT token required — user does not have one yet.
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -56,20 +58,10 @@ class RegisterView(APIView):
         Returns user profile and JWT tokens on success.
         Returns validation errors on failure.
         """
-        # Pass request data to serializer for validation.
-        # If any field is invalid — serializer catches it
-        # and we never reach the user creation code.
         serializer = RegisterSerializer(data=request.data)
 
         if serializer.is_valid():
-            # All data is valid — create the user.
-            # serializer.save() calls our create() method
-            # which calls create_user() with hashed password.
             user = serializer.save()
-
-            # Generate JWT tokens for the new user
-            # so they are logged in immediately after
-            # registration — no need to login separately.
             tokens = get_tokens_for_user(user)
 
             return Response({
@@ -86,9 +78,6 @@ class RegisterView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
 
-        # Serializer found validation errors.
-        # Return them clearly so React can display
-        # the right error message to the user.
         return Response({
             'success': False,
             'message': 'Registration failed.',
@@ -96,32 +85,33 @@ class RegisterView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 """
 Handles user login for myAiPA.
 Accepts POST requests with identifier and password.
 Identifier can be email OR username — either works.
+Rate limited to 5 attempts per minute per IP —
+prevents brute force password attacks.
 Returns JWT tokens on successful login.
 No authentication required — public endpoint.
 """
+@method_decorator(
+    ratelimit(key='ip', rate='5/m', method='POST', block=True),
+    name='post'
+)
 class LoginView(APIView):
-    # Public endpoint — user has no token yet
     permission_classes = [AllowAny]
 
     def post(self, request):
         """
         Handle POST /api/auth/login/
         Authenticates existing myAiPA user.
+        Blocked after 5 failed attempts per minute.
         Returns user profile and JWT tokens on success.
         Returns error on invalid credentials.
         """
         serializer = LoginSerializer(data=request.data)
 
         if serializer.is_valid():
-            # serializer.validated_data['user'] is set
-            # inside LoginSerializer.validate() after
-            # successful authentication. We access it here.
             user = serializer.validated_data['user']
             tokens = get_tokens_for_user(user)
 
@@ -142,7 +132,6 @@ class LoginView(APIView):
             'message': 'Login failed.',
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
-
 
 """
 Handles user logout for myAiPA.
@@ -178,10 +167,8 @@ class LogoutView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 """
-Returns the current logged in myAiPA user's profile.
+Returns the current logged in myAiPA user profile.
 Called by React whenever it needs current user data.
 Authentication required — must be logged in.
 """
@@ -205,8 +192,6 @@ class ProfileView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
-
 """
 Handles myAiPA user profile updates.
 Accepts PATCH requests with fields to update.
@@ -225,13 +210,8 @@ class UpdateProfileView(APIView):
         briefing_time without affecting other fields.
         """
         serializer = UpdateProfileSerializer(
-            # instance is the current user — we are
-            # updating this object not creating new one
             instance=request.user,
-            # data is what React sent to update
             data=request.data,
-            # partial=True means not all fields required
-            # user can send just one field if they want
             partial=True,
         )
 
@@ -274,17 +254,12 @@ class ChangePasswordView(APIView):
         Serializer handles old password verification.
         View just calls set_password and saves.
         """
-        # Pass context with request so serializer
-        # can access request.user for old password
-        # verification inside validate_old_password.
         serializer = ChangePasswordSerializer(
             data=request.data,
             context={'request': request}
         )
 
         if serializer.is_valid():
-            # Old password already verified in serializer.
-            # Just set the new password and save.
             request.user.set_password(
                 serializer.validated_data['new_password']
             )
@@ -304,6 +279,7 @@ class ChangePasswordView(APIView):
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
 
+
 """
 Handles password reset request for myAiPA.
 User provides their email address.
@@ -311,7 +287,14 @@ If email exists — sends password reset link.
 We never reveal whether email exists or not —
 prevents email enumeration attacks.
 No authentication required — user is logged out.
+Rate limited to 3 attempts per hour per IP —
+prevents reset email spam attacks.
+No authentication required — user is logged out.
 """
+@method_decorator(
+    ratelimit(key='ip', rate='3/h', method='POST', block=True),
+    name='post'
+)
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
 
@@ -329,45 +312,28 @@ class PasswordResetRequestView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email']
 
-            # Check if user exists with this email.
-            # We use filter() not get() to avoid exception.
             try:
                 user = User.objects.get(email=email)
 
-                # Generate password reset token
-                from django.contrib.auth.tokens import (
-                    default_token_generator
-                )
-                from django.utils.http import (
-                    urlsafe_base64_encode
-                )
-                from django.utils.encoding import (
-                    force_bytes
-                )
-
-                # uid encodes the user's id safely
                 uid = urlsafe_base64_encode(
                     force_bytes(user.pk)
                 )
-                # token is a secure one-time use string
                 token = default_token_generator.make_token(
                     user
                 )
 
-                # TODO: Send actual email in production.
-                # For now we return the reset link directly
-                # so we can test without email setup.
                 reset_link = (
                     f'http://localhost:5173/reset-password'
                     f'?uid={uid}&token={token}'
                 )
 
-                # In production replace above with:
-                # send_mail(subject, message, from, [email])
+                # Development only — prints to terminal.
+                # Replace with send_mail() in production.
+                print(f'PASSWORD RESET LINK: {reset_link}')
 
             except User.DoesNotExist:
-                # User not found — but we still return
-                # success to prevent email enumeration.
+                # User not found — still return success
+                # to prevent email enumeration attacks.
                 pass
 
         # Always return success regardless of whether
@@ -402,18 +368,7 @@ class PasswordResetConfirmView(APIView):
         )
 
         if serializer.is_valid():
-            from django.contrib.auth.tokens import (
-                default_token_generator
-            )
-            from django.utils.http import (
-                urlsafe_base64_decode
-            )
-            from django.utils.encoding import (
-                force_str
-            )
-
             try:
-                # Decode the uid to get the user's pk
                 uid = force_str(
                     urlsafe_base64_decode(
                         serializer.validated_data['uid']
@@ -421,7 +376,7 @@ class PasswordResetConfirmView(APIView):
                 )
                 user = User.objects.get(pk=uid)
 
-            except (User.DoesNotExist, ValueError, TypeError):
+            except (User.DoesNotExist, ValueError, TypeError, Exception):
                 return Response({
                     'success': False,
                     'message': 'Invalid password reset link.',
@@ -430,7 +385,6 @@ class PasswordResetConfirmView(APIView):
                     }
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Verify the token is valid and not expired
             token = serializer.validated_data['token']
             if not default_token_generator.check_token(
                 user, token
@@ -446,7 +400,6 @@ class PasswordResetConfirmView(APIView):
                     }
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Token is valid — set the new password
             user.set_password(
                 serializer.validated_data['new_password']
             )
@@ -465,5 +418,3 @@ class PasswordResetConfirmView(APIView):
             'message': 'Password reset failed.',
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
-
-
