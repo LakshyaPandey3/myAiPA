@@ -350,7 +350,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
         Strip whitespace from timezone value.
         Validates length matches database column of 50.
         Consistent with RegisterSerializer validation.
-        Full pytz validation added when installed.
+        Full pytz validation added.
         """
         value = value.strip()
 
