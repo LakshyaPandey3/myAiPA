@@ -94,3 +94,85 @@ class RegisterView(APIView):
             'message': 'Registration failed.',
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+"""
+Handles user login for myAiPA.
+Accepts POST requests with identifier and password.
+Identifier can be email OR username — either works.
+Returns JWT tokens on successful login.
+No authentication required — public endpoint.
+"""
+class LoginView(APIView):
+    # Public endpoint — user has no token yet
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """
+        Handle POST /api/auth/login/
+        Authenticates existing myAiPA user.
+        Returns user profile and JWT tokens on success.
+        Returns error on invalid credentials.
+        """
+        serializer = LoginSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # serializer.validated_data['user'] is set
+            # inside LoginSerializer.validate() after
+            # successful authentication. We access it here.
+            user = serializer.validated_data['user']
+            tokens = get_tokens_for_user(user)
+
+            return Response({
+                'success': True,
+                'message': (
+                    f'Welcome back! '
+                    f'{user.myAiPA_name} missed you.'
+                ),
+                'data': {
+                    'user': UserProfileSerializer(user).data,
+                    'tokens': tokens,
+                }
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'success': False,
+            'message': 'Login failed.',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+"""
+Handles user logout for myAiPA.
+Accepts POST requests with refresh token.
+Blacklists the token permanently on logout.
+Authentication required — must be logged in to logout.
+"""
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Handle POST /api/auth/logout/
+        Blacklists the refresh token permanently.
+        Token cannot be used again after this.
+        """
+        serializer = LogoutSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'success': True,
+                'message': (
+                    'You have been logged out of myAiPA. '
+                    'See you tomorrow!'
+                ),
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'success': False,
+            'message': 'Logout failed.',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
