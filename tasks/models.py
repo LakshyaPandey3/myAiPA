@@ -6,6 +6,47 @@
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
+
+
+"""
+Custom manager for myAiPA Task model.
+Automatically excludes soft deleted tasks from
+all standard queries — Task.objects.all() will
+never return deleted tasks unless explicitly requested.
+This prevents deleted tasks from leaking to users
+even if a view forgets to filter them out.
+"""
+class TaskManager(models.Manager):
+
+    def get_queryset(self):
+        """
+        Override default queryset to exclude
+        soft deleted tasks automatically.
+        Every Task.objects query uses this by default.
+        """
+        return super().get_queryset().filter(
+            is_deleted=False
+        )
+
+    def with_deleted(self):
+        """
+        Returns all tasks including deleted ones.
+        Used by EOD review to account for tasks
+        the user removed during the day.
+        Zoya asks — why did you delete these tasks?
+        """
+        return super().get_queryset()
+
+    def deleted_only(self):
+        """
+        Returns only deleted tasks.
+        Used by EOD review to specifically surface
+        tasks the user removed during the day.
+        """
+        return super().get_queryset().filter(
+            is_deleted=True
+        )
 
 
 """
@@ -15,6 +56,8 @@ Used by the morning briefing, EOD review, and
 next day planning features throughout myAiPA.
 Every task belongs to exactly one user — users
 can never see or modify each other's tasks.
+completed_at is set automatically when status
+changes to done — never set manually.
 """
 class Task(models.Model):
 
@@ -80,9 +123,9 @@ class Task(models.Model):
     )
 
     # Exact timestamp when task was marked done.
-    # Null until the task is completed.
-    # Used by EOD review to analyse completion patterns —
-    # "you complete most tasks before noon."
+    # Set automatically in save() when status = done.
+    # Reset to null if task is moved back from done.
+    # Never set manually — always automatic.
     completed_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -102,18 +145,45 @@ class Task(models.Model):
     # Used for incremental sync — "what changed recently?"
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Use our custom manager instead of default.
+    # Task.objects.all() automatically excludes deleted.
+    # Task.objects.with_deleted() includes deleted.
+    # Task.objects.deleted_only() returns only deleted.
+    objects = TaskManager()
+
     class Meta:
         # Default ordering — most recently created first.
-        # Can be overridden in views when needed.
         ordering = ['-created_at']
 
-        # Database index on user + is_deleted combination.
-        # Most queries filter by both — index makes them fast.
+        # Database indexes for frequently filtered fields.
+        # Makes queries significantly faster at scale.
         indexes = [
             models.Index(fields=['user', 'is_deleted']),
             models.Index(fields=['user', 'due_date']),
             models.Index(fields=['user', 'status']),
         ]
+
+    def save(self, *args, **kwargs):
+        """
+        Override save to automatically manage completed_at.
+        When status changes to done — set completed_at now.
+        When status changes away from done — clear it.
+        This ensures completed_at always reflects reality
+        without any view or serializer needing to set it.
+        """
+        if self.status == self.Status.DONE:
+            # Task just marked done — record exact time.
+            # Only set if not already set — prevents
+            # overwriting the original completion time
+            # if task is saved again while still done.
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+        else:
+            # Task is not done — clear completion time.
+            # Handles case where task moved back to todo.
+            self.completed_at = None
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         # Display task in admin panel as
