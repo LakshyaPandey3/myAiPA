@@ -151,6 +151,11 @@ class Task(models.Model):
     # Task.objects.deleted_only() returns only deleted.
     objects = TaskManager()
 
+    # Unfiltered manager — includes deleted tasks.
+    # Used by admin panel and internal debugging only.
+    # Never expose this to API endpoints.
+    all_objects = models.Manager()
+
     class Meta:
         # Default ordering — most recently created first.
         ordering = ['-created_at']

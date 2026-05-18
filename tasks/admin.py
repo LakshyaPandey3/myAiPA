@@ -15,6 +15,14 @@ across all users directly from the admin panel.
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
 
+    def get_queryset(self, request):
+        """
+        Override admin queryset to show ALL tasks
+        including soft deleted ones.
+        Admin needs full visibility for debugging.
+        """
+        return Task.all_objects.all()
+
     # Columns shown in the task list view.
     list_display = (
         'title',
