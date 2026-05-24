@@ -13,6 +13,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # All authentication endpoints live under /api/auth/
-    # The actual endpoint definitions are in accounts/urls.py
     path('api/auth/', include('accounts.urls')),
+
+    # Task management endpoints
+    path('api/tasks/', include('tasks.urls')),
 ]

@@ -22,6 +22,7 @@
 # - Consistent stripping in all cross field comparisons
 
 import re
+import pytz
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import check_password, make_password
@@ -231,15 +232,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_timezone(self, value):
         """
         Strip whitespace from timezone value.
-        Validates length matches database column.
-        Full pytz timezone validation added
-        when pytz package is installed.
+        Validates against real timezone database using pytz.
+        Prevents storing invalid timezone strings that would
+        break Celery briefing scheduling for this user.
         """
         value = value.strip()
 
-        if len(value) > 50:
+        if value not in pytz.all_timezones:
             raise serializers.ValidationError(
-                "Invalid timezone provided."
+                "Invalid timezone. Please provide a valid "
+                "timezone like Asia/Kolkata or America/New_York."
             )
 
         return value
@@ -348,15 +350,16 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
     def validate_timezone(self, value):
         """
         Strip whitespace from timezone value.
-        Validates length matches database column of 50.
-        Consistent with RegisterSerializer validation.
-        Full pytz validation added.
+        Validates against real timezone database using pytz.
+        Prevents storing invalid timezone strings that would
+        break Celery briefing scheduling for this user.
         """
         value = value.strip()
 
-        if len(value) > 50:
+        if value not in pytz.all_timezones:
             raise serializers.ValidationError(
-                "Invalid timezone provided."
+                "Invalid timezone. Please provide a valid "
+                "timezone like Asia/Kolkata or America/New_York."
             )
 
         return value
