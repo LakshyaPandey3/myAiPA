@@ -17,4 +17,7 @@ urlpatterns = [
 
     # Task management endpoints
     path('api/tasks/', include('tasks.urls')),
+
+    # Event scheduling endpoints
+    path('api/events/', include('scheduler.urls')),
 ]
