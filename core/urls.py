@@ -20,4 +20,7 @@ urlpatterns = [
 
     # Event scheduling endpoints
     path('api/events/', include('scheduler.urls')),
+
+    # Briefing, EOD review and next day planning
+    path('api/briefing/', include('briefing.urls')),
 ]
