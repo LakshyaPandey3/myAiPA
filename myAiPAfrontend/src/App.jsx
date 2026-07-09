@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
 
 function App() {
   const { user } = useAuth()
@@ -26,15 +27,21 @@ function App() {
           element={<Navigate to={user ? '/dashboard' : '/login'} replace />}
         />
 
-        {/* Protected routes — coming soon */}
+        {/* Protected routes */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <div className="p-8 text-xl font-bold">Dashboard coming soon</div>
+              <Dashboard />
             </ProtectedRoute>
           }
         />
+
+        {/* Coming soon placeholders */}
+        <Route path="/tasks" element={<ProtectedRoute><div className="p-8">Tasks coming soon</div></ProtectedRoute>} />
+        <Route path="/calendar" element={<ProtectedRoute><div className="p-8">Calendar coming soon</div></ProtectedRoute>} />
+        <Route path="/eod" element={<ProtectedRoute><div className="p-8">EOD Review coming soon</div></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute><div className="p-8">History coming soon</div></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
