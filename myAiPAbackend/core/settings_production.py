@@ -33,4 +33,5 @@ MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 # CORS — will add Vercel URL after frontend deployment
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'https://my-ai-pa.vercel.app',
 ]
