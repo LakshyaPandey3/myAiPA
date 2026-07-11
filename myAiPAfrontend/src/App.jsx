@@ -4,6 +4,10 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Tasks from './pages/Tasks'
+import Calendar from './pages/Calendar'
+import EODReview from './pages/EODReview'
+import History from './pages/History'
 
 function App() {
   const { user } = useAuth()
@@ -37,11 +41,11 @@ function App() {
           }
         />
 
-        {/* Coming soon placeholders */}
-        <Route path="/tasks" element={<ProtectedRoute><div className="p-8">Tasks coming soon</div></ProtectedRoute>} />
-        <Route path="/calendar" element={<ProtectedRoute><div className="p-8">Calendar coming soon</div></ProtectedRoute>} />
-        <Route path="/eod" element={<ProtectedRoute><div className="p-8">EOD Review coming soon</div></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute><div className="p-8">History coming soon</div></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+        <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+        <Route path="/eod" element={<ProtectedRoute><EODReview /></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+
       </Routes>
     </BrowserRouter>
   )
