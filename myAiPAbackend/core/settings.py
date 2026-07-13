@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -239,9 +239,10 @@ SIMPLE_JWT = {
 
 # In development — allow React local server
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',    # React Vite dev server
-    'http://127.0.0.1:5173',   # React Vite alternative
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://my-ai-pa.vercel.app",
+    "https://my-ai-hdvnwha7t-lakshya-pandeys-projects.vercel.app",
 ]
-
 # Allow cookies and auth headers to be sent
 CORS_ALLOW_CREDENTIALS = True
