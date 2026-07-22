@@ -2211,7 +2211,7 @@ Only reflection.
 Because understanding today is what makes tomorrow better.
 
 <p align="center">
-  <img src="docs/screenshots/Interospecting.png" alt="Daily Introspection" width="100%">
+  <img src="docs/screenshots/Introspecting.png" alt="Daily Introspection" width="100%">
 </p>
 
 > ## ✨ At a Glance
