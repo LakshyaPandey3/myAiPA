@@ -327,3 +327,4 @@ class EventSummarySerializer(serializers.ModelSerializer):
             'is_all_day',
             'is_deleted',
         ]
+        
